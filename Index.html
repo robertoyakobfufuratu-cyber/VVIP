@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body{font:16px Arial,sans-serif;max-width:520px;margin:20px auto;padding:0 16px;color:#172033}
+    h1{font-size:24px;color:#173b67}label{display:block;font-weight:600;margin:14px 0 6px}
+    input,button{box-sizing:border-box;width:100%;padding:12px;font-size:16px;border-radius:8px}
+    input{border:1px solid #cbd5e1}button{border:0;background:#173b67;color:white;font-weight:700;margin-top:12px}
+    .secondary{background:#64748b}.result{margin-top:16px;padding:14px;border-radius:8px;background:#f1f5f9;white-space:pre-line}
+    #reader{margin-top:12px}.hint{color:#475569;font-size:13px}
+  </style>
+</head>
+<body>
+  <h1>Verifikasi Kartu VIP</h1>
+  <p>Diskon 5% • Maksimal sekali per kartu per hari</p>
+  <label for="staff">Nama petugas</label><input id="staff" placeholder="Contoh: Admin 1">
+  <label for="card">ID kartu VIP</label><input id="card" placeholder="VIP-001" autocomplete="off">
+  <button class="secondary" onclick="startScan()">Pindai QR Code</button>
+  <div id="reader"></div>
+  <label for="amount">Nilai transaksi (Rp)</label><input id="amount" type="number" min="1" step="1" placeholder="Contoh: 100000">
+  <button onclick="redeem()">Verifikasi & Catat Diskon</button>
+  <div id="result" class="result">Siap memverifikasi kartu.</div>
+  <p class="hint">Pastikan nama petugas dan nilai transaksi benar sebelum menekan tombol verifikasi.</p>
+<script>
+let scanner;
+function startScan(){
+  if(typeof Html5Qrcode === 'undefined'){show('Pemindai tidak tersedia. Masukkan ID kartu secara manual.');return;}
+  if(!scanner) scanner = new Html5Qrcode("reader");
+  scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:230,height:230}},
+    text=>{document.getElementById('card').value=text.trim();scanner.stop().catch(()=>{});},
+    ()=>{}
+  ).catch(e=>show('Kamera gagal dibuka. Izinkan akses kamera atau masukkan ID manual.'));
+}
+function show(s){document.getElementById('result').textContent=s;}
+function redeem(){
+  const card=document.getElementById('card').value.trim();
+  const amount=document.getElementById('amount').value;
+  const staff=document.getElementById('staff').value.trim();
+  if(!card||!amount||!staff){show('Lengkapi ID kartu, nilai transaksi, dan nama petugas.');return;}
+  show('Memeriksa kartu...');
+  google.script.run.withSuccessHandler(r=>{
+    if(!r.ok){show('DITOLAK\n'+r.message);return;}
+    show('BERHASIL\n'+r.message+'\nNama: '+r.name+'\nID: '+r.cardId+
+      '\nNilai transaksi: Rp'+Number(r.amount).toLocaleString('id-ID')+
+      '\nDiskon: Rp'+Number(r.discount).toLocaleString('id-ID')+
+      '\nTotal bayar: Rp'+Number(r.total).toLocaleString('id-ID')+
+      '\nBerlaku sampai: '+r.expires);
+    document.getElementById('card').value='';
+    document.getElementById('amount').value='';
+  }).withFailureHandler(e=>show('Terjadi kesalahan: '+e.message))
+    .verifyAndRedeem(card,amount,staff);
+}
+</script>
+</body>
+</html>
